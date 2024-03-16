@@ -99,70 +99,64 @@ class ProcessedAgentData(BaseModel):
 # WebSocket subscriptions
 subscriptions: Dict[int, Set[WebSocket]] = {}
 
-
-# FastAPI WebSocket endpoint
+# WebSocket endpoint
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: int):
     await websocket.accept()
-    if user_id not in subscriptions:
-        subscriptions[user_id] = set()
-    subscriptions[user_id].add(websocket)
+    # Add WebSocket connection to user's subscriptions
+    subscriptions.setdefault(user_id, set()).add(websocket)
     try:
         while True:
             await websocket.receive_text()
     except WebSocketDisconnect:
-        subscriptions[user_id].remove(websocket)
+        # Remove WebSocket connection when disconnected
+        if user_id in subscriptions:
+            subscriptions[user_id].remove(websocket)
 
 
 # Function to send data to subscribed users
 async def send_data_to_subscribers(user_id: int, data):
     if user_id in subscriptions:
         for websocket in subscriptions[user_id]:
-            await websocket.send_json(json.dumps(data))
+            await websocket.send_json(data)
 
 
-# FastAPI CRUDL endpoints
-
+# CRUDL endpoints for ProcessedAgentData
 
 @app.post("/processed_agent_data/")
 async def create_processed_agent_data(data: List[ProcessedAgentData]):
     # Insert data to database
     # Send data to subscribers
+    await send_data_to_subscribers(data.user_id, data)
+    return {"message": "Data created successfully"}
+
+
+@app.get("/processed_agent_data/{processed_agent_data_id}")
+async def read_processed_agent_data(processed_agent_data_id: int):
+    # Get data by id from database
+    # return data
     pass
 
 
-@app.get(
-    "/processed_agent_data/{processed_agent_data_id}",
-    response_model=ProcessedAgentDataInDB,
-)
-def read_processed_agent_data(processed_agent_data_id: int):
-    # Get data by id
+@app.get("/processed_agent_data/", response_model=List[ProcessedAgentDataInDB])
+async def list_processed_agent_data():
+    # Get list of data from database
+    # return data
     pass
 
 
-@app.get("/processed_agent_data/", response_model=list[ProcessedAgentDataInDB])
-def list_processed_agent_data():
-    # Get list of data
+@app.put("/processed_agent_data/{processed_agent_data_id}")
+async def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAgentData):
+    # Update data in database
+    # return updated data
     pass
 
 
-@app.put(
-    "/processed_agent_data/{processed_agent_data_id}",
-    response_model=ProcessedAgentDataInDB,
-)
-def update_processed_agent_data(processed_agent_data_id: int, data: ProcessedAgentData):
-    # Update data
+@app.delete("/processed_agent_data/{processed_agent_data_id}")
+async def delete_processed_agent_data(processed_agent_data_id: int):
+    # Delete data by id from database
+    # return deleted data
     pass
-
-
-@app.delete(
-    "/processed_agent_data/{processed_agent_data_id}",
-    response_model=ProcessedAgentDataInDB,
-)
-def delete_processed_agent_data(processed_agent_data_id: int):
-    # Delete by id
-    pass
-
 
 if __name__ == "__main__":
     import uvicorn
